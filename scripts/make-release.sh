@@ -7,6 +7,10 @@
 #
 # Non interactive use:
 #   STORE_PASSWORD=yourpassword ./scripts/make-release.sh
+#   STORE_PASSWORD_FILE=/path/to/pw ./scripts/make-release.sh
+#
+# The password is fed to keytool through stdin, so it never appears in the
+# process list.
 #
 set -euo pipefail
 
@@ -18,34 +22,38 @@ PROPS="keystore.properties"
 VALIDITY="${VALIDITY:-10000}"
 DNAME="${DNAME:-CN=SocksTun, OU=Personal, O=Personal, C=CN}"
 
+read_password() {
+	if [ -n "${STORE_PASSWORD_FILE:-}" ]; then
+		head -n 1 "$STORE_PASSWORD_FILE"
+	elif [ -n "${STORE_PASSWORD:-}" ]; then
+		printf '%s\n' "$STORE_PASSWORD"
+	else
+		read -r -s -p "    keystore 密码: " PW; echo
+		read -r -s -p "    再输一次:      " PW2; echo
+		if [ "$PW" != "$PW2" ]; then
+			echo "两次输入不一致，退出"
+			exit 1
+		fi
+		printf '%s\n' "$PW"
+	fi
+}
+
 if [ ! -f "$PROPS" ]; then
 	if [ ! -f "$KEYSTORE" ]; then
 		echo "==> 生成签名密钥: $KEYSTORE"
-		if [ -n "${STORE_PASSWORD:-}" ]; then
-			PW="$STORE_PASSWORD"
-			echo "    使用环境变量 STORE_PASSWORD"
-		else
-			read -r -s -p "    keystore 密码: " PW; echo
-			read -r -s -p "    再输一次:      " PW2; echo
-			if [ "$PW" != "$PW2" ]; then
-				echo "两次输入不一致，退出"
-				exit 1
-			fi
-		fi
-		keytool -genkeypair -v \
+		PW="$(read_password)"
+		# keytool prompts for the store password, the new key password and
+		# a confirmation. For PKCS12 the key password is the store password.
+		printf '%s\n%s\n%s\n' "$PW" "$PW" "$PW" | keytool -genkeypair \
 			-keystore "$KEYSTORE" \
 			-alias "$ALIAS" \
 			-keyalg RSA -keysize 2048 \
 			-validity "$VALIDITY" \
 			-storetype PKCS12 \
-			-storepass "$PW" -keypass "$PW" \
 			-dname "$DNAME"
 		echo "    密钥已生成: $KEYSTORE"
 	else
-		PW="${STORE_PASSWORD:-}"
-		if [ -z "$PW" ]; then
-			read -r -s -p "    $KEYSTORE 的密码: " PW; echo
-		fi
+		PW="$(read_password)"
 	fi
 
 	cat > "$PROPS" <<EOF
