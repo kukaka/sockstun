@@ -5,6 +5,14 @@ app/build
 # Local machine specific: points at the local Android SDK
 local.properties
 
+# Release signing. The real key and its passwords must never be committed.
+# store.properties is tracked on purpose and only holds the standard debug
+# keystore, so that a plain build always works.
+keystore.properties
+*.jks
+*.keystore
+!debug.keystore
+
 # IDE
 .idea/
 *.iml

@@ -39,12 +39,19 @@ android {
 		}
 	}
 
-	def propsFile = rootProject.file('store.properties')
+	/* Signing configuration.
+	   store.properties is tracked in the repository and points at the
+	   standard Android debug keystore, so a plain build always works.
+	   keystore.properties holds the real release key and is git ignored,
+	   it takes precedence when present. */
 	def configName = 'release'
+	def propsFile = rootProject.file('store.properties')
+	def releasePropsFile = rootProject.file('keystore.properties')
+	def usedPropsFile = releasePropsFile.exists() ? releasePropsFile : propsFile
 
-	if (propsFile.exists() && android.signingConfigs.hasProperty(configName)) {
+	if (usedPropsFile.exists() && android.signingConfigs.hasProperty(configName)) {
 		def props = new Properties()
-		props.load(new FileInputStream(propsFile))
+		props.load(new FileInputStream(usedPropsFile))
 		if (props!=null && props.containsKey('storeFile')) {
 			android.signingConfigs[configName].storeFile = rootProject.file(props['storeFile'])
 			android.signingConfigs[configName].storePassword = props['storePassword']

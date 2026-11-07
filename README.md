@@ -93,6 +93,31 @@ Gradle 与 AGP 版本已锁定，缺失的 SDK 组件 Gradle 会自动下载。
 adb install -r app/build/outputs/apk/debug/hev.sockstun-8.1-debug.apk
 ```
 
+### 构建发布版（自带签名）
+
+```bash
+./scripts/make-release.sh
+```
+
+首次运行会生成签名密钥 `release.jks` 和 `keystore.properties`（两者都在 `.gitignore` 中，
+**不会被提交**），之后直接 `./gradlew assembleRelease` 即可。产物：
+
+```
+app/build/outputs/apk/release/hev.sockstun-8.1-release.apk
+```
+
+> **签名配置的优先级**：
+> `keystore.properties`（你自己的密钥，已 gitignore）> `store.properties`（仓库里跟踪的，
+> 指向标准 Android debug keystore）。
+> 所以直接 `./gradlew assembleRelease` 也能出包，但签的是 `CN=Android Debug`——
+> 能装、能用，但不是正规发布签名。
+>
+> **注意**：`store.properties` 是被 git 跟踪的，**不要**把真实密码写进去再提交。
+> 真实密钥请放 `keystore.properties`。
+>
+> 也不要用 R8 混淆（`minifyEnabled false`）：JNI 通过 `RegisterNatives` 按**字符串**查找
+> 类名和方法名，混淆后名字对不上会直接崩。
+
 ## 六、使用
 
 ### 1. 配置服务器
