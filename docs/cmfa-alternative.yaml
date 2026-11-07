@@ -1,0 +1,123 @@
+# ============================================================================
+#  Clash Meta for Android (CMFA) 本地配置
+#  作用：把手机上「指定 App」（如 TikTok）的 TCP + UDP 流量，
+#        统一通过 SOCKS5 转发到 Mac 上运行 Clash Verge 的机器。
+#
+#  用法：CMFA → 配置 → 新建 → 本地配置 → 粘贴本文件内容 → 保存 → 选为当前配置
+#
+#  ⚠️ 使用前必须修改下方 proxies[0] 的 server 和 port
+#     · server = Mac 的局域网 IP   （Mac 上执行 `ipconfig getifaddr en0` 查看）
+#     · port   = Mac 上 Clash 的 mixed-port（Clash Verge 默认 7897）
+# ============================================================================
+
+# ---------------------------------------------------------------- 基础设置 ---
+mixed-port: 7890
+allow-lan: false
+bind-address: "*"
+# 运行模式。CMFA 主界面右上角的「规则/全局/直连」开关优先级高于这里，
+# 所以在 App 里切成「全局模式」即可，GLOBAL 组选中 PROXY → MacClash。
+# 注意：全局模式下 rules 段不生效。
+mode: global
+# 平时用 info 即可；排查问题时改成 debug，CMFA 日志里能看到 SOCKS5 握手的细节。
+log-level: info
+ipv6: false
+external-controller: 127.0.0.1:9090
+unified-delay: true
+tcp-concurrent: true
+find-process-mode: strict
+global-client-fingerprint: chrome
+
+# ------------------------------------------------------------------- DNS -----
+# fake-ip 模式：让 mihomo 保留「域名 ↔ 假 IP」的映射，
+# 这样转发给 Mac 的是域名而不是 IP，Mac 上的 DOMAIN 规则才能匹配上。
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "*.localdomain"
+    - "localhost.ptlogin2.qq.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "+.pool.ntp.org"
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  # 用于解析 SOCKS5 服务器的域名（本配置填 IP，用不到但保留）
+  proxy-server-nameserver:
+    - 223.5.5.5
+
+# ---------------------------------------------------------------- sniffer ----
+# 从 TLS / QUIC 的 SNI 里还原域名并覆盖目标地址。
+# 这是让 Mac 端 Clash 按域名分流的关键一环（TikTok 视频走 QUIC，没有 SNI 就认不出域名）。
+sniffer:
+  enable: true
+  override-destination: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+      override-destination: true
+    QUIC:
+      ports: [443, 8443]
+      override-destination: true
+  # 强制以下域名始终以「域名」形式处理，不退化成 IP
+  force-domain:
+    - "+.tiktokv.com"
+    - "+.tiktokv.us"
+    - "+.tiktokcdn.com"
+    - "+.tiktokcdn.us"
+    - "+.byteoversea.com"
+    - "+.ibytedtos.com"
+    - "+.musical.ly"
+    - "+.bytedance.com"
+    - "+.bytednsdoc.com"
+  skip-domain:
+    - "Mijia Cloud"
+    - "+.push.apple.com"
+
+# ------------------------------------------------------------------- tun -----
+# CMFA 会自己启用 TUN；这里的 mtu / dns-hijack 用于手动调优。
+#
+# ⚠️ mtu 是本方案最容易踩的坑：
+#   TikTok 视频是 QUIC(UDP)，链路是 QUIC → SOCKS5 UDP → Mac → 节点。
+#   若节点是 Hysteria2 / TUIC（本身基于 QUIC），就成了 QUIC 套 QUIC：
+#     1472(QUIC 负载) + 10(SOCKS5 UDP 头) + 30~50(内层 QUIC 头) ≈ 1520+
+#   超过 1500 会在 Mac 侧触发 IP 分片 → 大包被丢、小包通过
+#   → 表现为「时好时坏、视频时播时不播」。
+#   1400 是保守值（已验证可用）。若节点不是 Hysteria2/TUIC 且想跑满带宽，
+#   可以改成 1500；仍不稳就 1280。
+tun:
+  enable: true
+  mtu: 1400
+  dns-hijack:
+    - any:53
+
+# --------------------------------------------------------------- proxies -----
+proxies:
+  - name: "MacClash"
+    type: socks5
+    server: 192.168.2.25 # ←←← 改成你的 Mac 局域网 IP
+    port: 7897 # ←←← 改成你的 mixed-port
+    udp: true # ← 务必保持 true，否则 UDP（视频）走不了
+    # username: your_user     # Mac 上开了 authentication 才需要填
+    # password: your_pass
+
+# ---------------------------------------------------------- proxy-groups ----
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - MacClash
+      - DIRECT
+
+# ----------------------------------------------------------------- rules ----
+# TUN 里进来的所有流量都交给 MacClash，最终怎么走由 Mac 上的 Clash 规则决定。
+# ⚠️ 仅在「规则模式」下生效；全局模式忽略 rules。
+rules:
+  - MATCH,PROXY

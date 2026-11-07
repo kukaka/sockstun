@@ -27,4 +27,26 @@
 	<string name="profile_limit">Profile limit reached (13)</string>
 	<string name="profile_last">Cannot delete the last profile</string>
 	<string name="profile_delete_confirm">Delete profile “%s”?</string>
+	<string name="mtu">MTU</string>
+	<string name="wifi_section">Wi-Fi auto switch</string>
+	<string name="wifi_enabled">Enable Wi-Fi auto switch</string>
+	<string name="wifi_auto_start">Auto start on known Wi-Fi</string>
+	<string name="wifi_current">Current Wi-Fi: %s</string>
+	<string name="wifi_unknown">Current Wi-Fi: unknown</string>
+	<string name="wifi_unknown_no_permission">Current Wi-Fi: unknown (location permission not granted)</string>
+	<string name="wifi_unknown_no_location">Current Wi-Fi: unknown (location services are off)</string>
+	<string name="wifi_permission_title">Location permission</string>
+	<string name="wifi_permission_rationale">Reading the name of the Wi-Fi network requires the location permission. Android treats the Wi-Fi name as location information, so only apps holding the location permission get it. SocksTun uses it locally to pick a configuration and never uploads it.</string>
+	<string name="wifi_permission_denied">The location permission has been permanently denied. Grant “Location” in Settings → Apps → SocksTun → Permissions.</string>
+	<string name="wifi_manage">Bindings</string>
+	<string name="wifi_default">Default profile</string>
+	<string name="wifi_default_none">Do not switch</string>
+	<string name="wifi_bind">Bind current Wi-Fi</string>
+	<string name="wifi_bind_hint">Tap a binding to change its profile, long press to delete it.</string>
+	<string name="wifi_bind_done">Bound %s → %s</string>
+	<string name="wifi_delete_confirm">Delete the binding for %s?</string>
+	<string name="wifi_no_ssid">Cannot read the current Wi-Fi name</string>
+	<string name="wifi_permission_required">Location permission is required to read the Wi-Fi name</string>
+	<string name="wifi_watch_channel">Wi-Fi auto switch</string>
+	<string name="wifi_watch_running">Watching for Wi-Fi changes</string>
 </resources>

@@ -36,6 +36,7 @@ public class TProxyService extends VpnService {
 
 	public static final String ACTION_CONNECT = "hev.sockstun.CONNECT";
 	public static final String ACTION_DISCONNECT = "hev.sockstun.DISCONNECT";
+	public static final String ACTION_RELOAD = "hev.sockstun.RELOAD";
 
 	static {
 		System.loadLibrary("hev-socks5-tunnel");
@@ -48,6 +49,10 @@ public class TProxyService extends VpnService {
 		if (intent != null && ACTION_DISCONNECT.equals(intent.getAction())) {
 			stopService();
 			return START_NOT_STICKY;
+		}
+		if (intent != null && ACTION_RELOAD.equals(intent.getAction())) {
+			reloadService();
+			return START_STICKY;
 		}
 		startService();
 		return START_STICKY;
@@ -128,6 +133,22 @@ public class TProxyService extends VpnService {
 		}
 
 		/* TProxy */
+		String tproxy_path = writeConfigFile(prefs);
+		if (tproxy_path == null)
+		  return;
+
+		TProxyStartService(tproxy_path, tunFd.getFd());
+		prefs.setEnable(true);
+		QSTileService.requestUpdate(this);
+
+		String channelName = "socks5";
+		initNotificationChannel(channelName);
+		createNotification(channelName);
+	}
+
+	/* Write the hev-socks5-tunnel configuration for the currently selected
+	   profile. Returns the path of the config file, or null on failure. */
+	private String writeConfigFile(Preferences prefs) {
 		File tproxy_file = new File(getCacheDir(), "tproxy.conf");
 		try {
 			tproxy_file.createNewFile();
@@ -166,15 +187,39 @@ public class TProxyService extends VpnService {
 			fos.write(tproxy_conf.getBytes());
 			fos.close();
 		} catch (IOException e) {
+			return null;
+		}
+		return tproxy_file.getAbsolutePath();
+	}
+
+	/* Restart the native tunnel with the configuration of the currently
+	   selected profile. The TUN fd is kept, so the connection is not
+	   interrupted. */
+	public void reloadService() {
+		if (tunFd == null)
+		  return;
+
+		Preferences prefs = new Preferences(this);
+		String tproxy_path = writeConfigFile(prefs);
+		if (tproxy_path == null)
+		  return;
+
+		TProxyStopService();
+		if (!TProxyStartService(tproxy_path, tunFd.getFd())) {
+			/* The native tunnel could not be restarted on the same fd,
+			   rebuild the whole service instead. */
+			stopForeground(true);
+			TProxyStopService();
+			try {
+				tunFd.close();
+			} catch (IOException e) {
+			}
+			tunFd = null;
+			startService();
 			return;
 		}
-		TProxyStartService(tproxy_file.getAbsolutePath(), tunFd.getFd());
 		prefs.setEnable(true);
 		QSTileService.requestUpdate(this);
-
-		String channelName = "socks5";
-		initNotificationChannel(channelName);
-		createNotification(channelName);
 	}
 
 	public void stopService() {

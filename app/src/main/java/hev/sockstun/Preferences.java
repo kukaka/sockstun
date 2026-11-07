@@ -11,8 +11,14 @@ package hev.sockstun;
 
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.TreeMap;
+import java.util.Iterator;
 import android.content.Context;
 import android.content.SharedPreferences;
+import org.json.JSONObject;
+import org.json.JSONException;
 
 public class Preferences
 {
@@ -34,6 +40,13 @@ public class Preferences
 	public static final String NAME = "Name";
 	public static final String PROFILE_COUNT = "ProfileCount";
 	public static final String SELECTED = "Selected";
+	public static final String MTU = "Mtu";
+
+	/* Wi-Fi bindings are application wide, not profile scoped. */
+	public static final String WIFI_MAP = "WifiMap";
+	public static final String WIFI_DEFAULT = "WifiDefault";
+	public static final String WIFI_AUTO_START = "WifiAutoStart";
+	public static final String WIFI_ENABLED = "WifiEnabled";
 
 	public static final int MAX_PROFILES = 13;
 
@@ -60,6 +73,7 @@ public class Preferences
 
 		SharedPreferences.Editor editor = prefs.edit();
 		editor.putString(key(0, NAME), "Default");
+		editor.putInt(key(0, MTU), 8500);
 		if (prefs.contains(SOCKS_ADDR))
 		  editor.putString(key(0, SOCKS_ADDR), prefs.getString(SOCKS_ADDR, ""));
 		if (prefs.contains(SOCKS_UDP_ADDR))
@@ -122,6 +136,7 @@ public class Preferences
 		editor.putBoolean(key(dst, UDP_IN_TCP), prefs.getBoolean(key(src, UDP_IN_TCP), false));
 		editor.putBoolean(key(dst, REMOTE_DNS), prefs.getBoolean(key(src, REMOTE_DNS), true));
 		editor.putStringSet(key(dst, APPS), new HashSet<String>(prefs.getStringSet(key(src, APPS), new HashSet<String>())));
+		editor.putInt(key(dst, MTU), prefs.getInt(key(src, MTU), 8500));
 	}
 
 	private void removeProfile(SharedPreferences.Editor editor, int profile) {
@@ -139,6 +154,7 @@ public class Preferences
 		editor.remove(key(profile, UDP_IN_TCP));
 		editor.remove(key(profile, REMOTE_DNS));
 		editor.remove(key(profile, APPS));
+		editor.remove(key(profile, MTU));
 	}
 
 	public int getProfileCount() {
@@ -351,7 +367,133 @@ public class Preferences
 	}
 
 	public int getTunnelMtu() {
-		return 8500;
+		return prefs.getInt(key(MTU), 8500);
+	}
+
+	public void setTunnelMtu(int mtu) {
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putInt(key(MTU), mtu);
+		editor.commit();
+	}
+
+	/* --- profile indexed accessors --- */
+
+	public String getProfileName(int profile) {
+		return prefs.getString(key(profile, NAME), "Default");
+	}
+
+	public boolean getIpv4(int profile) {
+		return prefs.getBoolean(key(profile, IPV4), true);
+	}
+
+	public boolean getIpv6(int profile) {
+		return prefs.getBoolean(key(profile, IPV6), true);
+	}
+
+	public boolean getGlobal(int profile) {
+		return prefs.getBoolean(key(profile, GLOBAL), false);
+	}
+
+	public Set<String> getApps(int profile) {
+		return prefs.getStringSet(key(profile, APPS), new HashSet<String>());
+	}
+
+	/* Two profiles share the same VPN scope when the tunnel itself does not
+	   have to be re-established, i.e. only the upstream server changes.
+	   In that case the native tunnel can be restarted on the same TUN fd. */
+	public boolean sameVpnScope(int a, int b) {
+		return getIpv4(a) == getIpv4(b) &&
+		       getIpv6(a) == getIpv6(b) &&
+		       getGlobal(a) == getGlobal(b) &&
+		       getApps(a).equals(getApps(b));
+	}
+
+	/* --- Wi-Fi bindings --- */
+
+	/* ssid -> profile index */
+	public Map<String,Integer> getWifiMap() {
+		Map<String,Integer> map = new TreeMap<String,Integer>();
+		String json = prefs.getString(WIFI_MAP, "");
+		if (json.isEmpty())
+		  return map;
+
+		try {
+			JSONObject obj = new JSONObject(json);
+			for (Iterator<String> it = obj.keys(); it.hasNext();) {
+				String k = it.next();
+				map.put(k, obj.getInt(k));
+			}
+		} catch (JSONException e) {
+		}
+		return map;
+	}
+
+	public void setWifiMap(Map<String,Integer> map) {
+		JSONObject obj = new JSONObject();
+		for (Map.Entry<String,Integer> e : map.entrySet()) {
+			try {
+				obj.put(e.getKey(), e.getValue().intValue());
+			} catch (JSONException ex) {
+			}
+		}
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putString(WIFI_MAP, obj.toString());
+		editor.commit();
+	}
+
+	/* Returns the profile bound to the given SSID, or -1. */
+	public int getWifiProfile(String ssid) {
+		if (ssid == null)
+		  return -1;
+		Integer v = getWifiMap().get(ssid);
+		return v == null ? -1 : v.intValue();
+	}
+
+	public void setWifiProfile(String ssid, int profile) {
+		if (ssid == null)
+		  return;
+		Map<String,Integer> map = getWifiMap();
+		map.put(ssid, profile);
+		setWifiMap(map);
+	}
+
+	public void removeWifiProfile(String ssid) {
+		Map<String,Integer> map = getWifiMap();
+		if (map.remove(ssid) != null)
+		  setWifiMap(map);
+	}
+
+	/* Profile used when the current SSID has no explicit binding, -1 for none. */
+	public int getWifiDefault() {
+		return prefs.getInt(WIFI_DEFAULT, -1);
+	}
+
+	public void setWifiDefault(int profile) {
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putInt(WIFI_DEFAULT, profile);
+		editor.commit();
+	}
+
+	/* Start the tunnel automatically when joining a Wi-Fi that has an
+	   explicit binding. */
+	public boolean getWifiAutoStart() {
+		return prefs.getBoolean(WIFI_AUTO_START, false);
+	}
+
+	public void setWifiAutoStart(boolean enable) {
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putBoolean(WIFI_AUTO_START, enable);
+		editor.commit();
+	}
+
+	public boolean getWifiEnabled() {
+		return prefs.getBoolean(WIFI_ENABLED, false);
+	}
+
+	public void setWifiEnabled(boolean enable) {
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putBoolean(WIFI_ENABLED, enable);
+		editor.commit();
 	}
 
 	public String getTunnelIpv4Address() {

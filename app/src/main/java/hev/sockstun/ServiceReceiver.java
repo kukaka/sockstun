@@ -14,6 +14,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
+import android.util.Log;
 
 public class ServiceReceiver extends BroadcastReceiver {
 	@Override
@@ -33,6 +34,24 @@ public class ServiceReceiver extends BroadcastReceiver {
 					context.startForegroundService(i.setAction(TProxyService.ACTION_CONNECT));
 				} else {
 					context.startService(i.setAction(TProxyService.ACTION_CONNECT));
+				}
+			}
+
+			/* Wi-Fi watcher */
+			if (prefs.getWifiEnabled()) {
+				Intent w = new Intent(context, WifiWatchService.class);
+				w.setAction(WifiWatchService.ACTION_START);
+				try {
+					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+						context.startForegroundService(w);
+					} else {
+						context.startService(w);
+					}
+				} catch (Exception e) {
+					/* A foreground service of type location may not be
+					   started from the background on Android 14 and later.
+					   It is started again when the app is opened. */
+					Log.w("SocksTun", "start WifiWatchService failed", e);
 				}
 			}
 		}

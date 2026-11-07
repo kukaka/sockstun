@@ -1,3 +1,11 @@
 .gradle
 app/.externalNativeBuild
 app/build
+
+# Local machine specific: points at the local Android SDK
+local.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store

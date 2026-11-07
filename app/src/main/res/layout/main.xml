@@ -137,6 +137,20 @@
 				android:digits="0123456789abcdef:"
 				android:maxLines="1"/>
 		</com.google.android.material.textfield.TextInputLayout>
+		<com.google.android.material.textfield.TextInputLayout
+			android:id="@+id/til_mtu"
+			style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:hint="@string/mtu">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/mtu"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="number"
+				android:maxLines="1"/>
+		</com.google.android.material.textfield.TextInputLayout>
 		<LinearLayout
 			android:orientation="horizontal"
 			android:layout_width="match_parent"
@@ -185,6 +199,57 @@
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
 				android:text="@string/apps"/>
+		</LinearLayout>
+		<TextView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="24dp"
+			android:text="@string/wifi_section"
+			android:textAppearance="?attr/textAppearanceTitleMedium"/>
+		<LinearLayout
+			android:orientation="horizontal"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp">
+			<CheckBox
+				android:id="@+id/wifi_enabled"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="@string/wifi_enabled"/>
+			<CheckBox
+				android:id="@+id/wifi_auto_start"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="@string/wifi_auto_start"/>
+		</LinearLayout>
+		<TextView
+			android:id="@+id/wifi_current"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:textAppearance="?attr/textAppearanceBodyMedium"/>
+		<LinearLayout
+			android:orientation="horizontal"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp">
+			<Button
+				android:id="@+id/wifi_manage"
+				style="?attr/materialButtonOutlinedStyle"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:layout_marginEnd="8dp"
+				android:text="@string/wifi_manage"/>
+			<Button
+				android:id="@+id/wifi_default"
+				style="?attr/materialButtonOutlinedStyle"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="@string/wifi_default"/>
 		</LinearLayout>
 		<LinearLayout
 			android:orientation="horizontal"
